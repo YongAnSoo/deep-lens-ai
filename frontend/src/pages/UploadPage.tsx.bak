@@ -1,0 +1,92 @@
+﻿import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { DetectionResult } from "../types";
+
+type Props = {
+  setResult: (result: DetectionResult | null) => void;
+};
+
+export default function UploadPage({ setResult }: Props) {
+  const navigate = useNavigate();
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError("请先选择视频文件。");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    // Clear old result before running a new detection.
+    setResult(null);
+    localStorage.removeItem("deeplens_result");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`${apiBase}/predict`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "检测失败，请检查后端服务。");
+      }
+
+      data.client_saved_at = new Date().toISOString();
+
+      setResult(data as DetectionResult);
+      localStorage.setItem("deeplens_result", JSON.stringify(data));
+
+      navigate("/result", { replace: true });
+    } catch (err: any) {
+      setError(err?.message || "检测失败。");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="page">
+      <section className="hero compact">
+        <p className="eyebrow">UPLOAD</p>
+        <h1>上传视频检测</h1>
+        <p className="subtitle">
+          建议上传 30 秒以内、光线清晰且包含人脸的视频。Render 免费实例首次请求可能需要等待冷启动。
+        </p>
+
+        <div className="upload-card">
+          <h2>选择视频</h2>
+          <p>支持 mp4、mov、avi、mkv。</p>
+
+          <input
+            type="file"
+            accept=".mp4,.mov,.avi,.mkv,video/*"
+            onChange={(event) => {
+              const selected = event.target.files?.[0] || null;
+              setFile(selected);
+              setError("");
+            }}
+          />
+
+          {file && <p className="selected-file">已选择：{file.name}</p>}
+
+          <button className="primary-button" onClick={handleUpload} disabled={loading}>
+            {loading ? "检测中..." : "开始检测"}
+          </button>
+
+          {error && <p className="error-text">{error}</p>}
+        </div>
+      </section>
+    </main>
+  );
+}

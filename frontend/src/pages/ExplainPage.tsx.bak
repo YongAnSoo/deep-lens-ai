@@ -1,0 +1,186 @@
+﻿import { Link } from "react-router-dom";
+import type { DetectionResult } from "../types";
+
+type Props = {
+  result: DetectionResult | null;
+};
+
+export default function ExplainPage({ result }: Props) {
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+  let savedResult: any = null;
+
+  try {
+    const saved = localStorage.getItem("deeplens_result");
+    savedResult = saved ? JSON.parse(saved) : null;
+  } catch {
+    savedResult = null;
+  }
+
+  const data: any = result || savedResult;
+
+  if (!data) {
+    return (
+      <main className="page">
+        <section className="hero compact">
+          <p className="eyebrow">EXPLAINABILITY</p>
+          <h1>暂无检测结果</h1>
+          <p className="subtitle">请先上传视频完成检测，再查看可解释化分析。</p>
+          <Link className="primary-button" to="/upload">去上传视频</Link>
+        </section>
+      </main>
+    );
+  }
+
+  const moduleB =
+    data.module_b ||
+    data.raw_result?.module_b ||
+    data.model_result?.module_b ||
+    {};
+
+  const details =
+    data.module_b_details ||
+    data.raw_result?.module_b_details ||
+    data.model_result?.module_b_details ||
+    {};
+
+  const fft =
+    details.fft ||
+    moduleB.frequency_summary ||
+    moduleB.frequency_analysis ||
+    {};
+
+  const sync =
+    details.sync ||
+    moduleB.sync_summary ||
+    moduleB.sync_analysis ||
+    {};
+
+  const gradcamPaths =
+    data.gradcam_paths ||
+    data.raw_result?.gradcam_paths ||
+    {};
+
+  const llmText =
+    data.llm_analysis?.text ||
+    data.raw_result?.llm_analysis?.text ||
+    data.model_result?.llm_analysis?.text ||
+    data.explanation?.summary ||
+    "暂无 LLM 解释。";
+
+  const spectrumUrl =
+    data.module_b_details?.fft?.spectrum_url ||
+    data.raw_result?.module_b_details?.fft?.spectrum_url ||
+    data.model_result?.module_b_details?.fft?.spectrum_url ||
+    fft.spectrum_url;
+
+  const toPublicUrl = (path: string) => {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    if (path.startsWith("/outputs")) return `${apiBase}${path}`;
+    return path;
+  };
+
+  const gradcamEntries = Object.entries(gradcamPaths || {});
+
+  return (
+    <main className="page">
+      <section className="hero compact">
+        <p className="eyebrow">EXPLAINABILITY</p>
+        <h1>可解释化分析</h1>
+        <p className="subtitle">
+          展示 Grad-CAM 热力图、FFT 频域结果、Sync 音视频同步结果和 LLM 解释。
+        </p>
+      </section>
+
+      <section className="explain-grid">
+        <div className="panel">
+          <h2>Grad-CAM 热力图</h2>
+
+          {gradcamEntries.length === 0 ? (
+            <div className="placeholder-box">暂无 Grad-CAM 输出</div>
+          ) : (
+            <div className="image-grid">
+              {gradcamEntries.map(([frameIndex, paths]: any) => {
+                const overlay = paths?.overlay || paths?.heatmap || paths?.original;
+
+                return (
+                  <div className="image-card" key={frameIndex}>
+                    {overlay ? (
+                      <img src={toPublicUrl(overlay)} alt={`Grad-CAM frame ${frameIndex}`} />
+                    ) : (
+                      <div className="placeholder-box">暂无图片</div>
+                    )}
+                    <span>Frame {frameIndex}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <h2>FFT 频域分析</h2>
+
+          <div className="kv-list">
+            <div><span>可用性</span><strong>{fft.available ? "available" : "unavailable"}</strong></div>
+            <div><span>frequency_score</span><strong>{moduleB.frequency_score ?? fft.frequency_score ?? "--"}</strong></div>
+            <div><span>FFT 高频均值</span><strong>{fft.fft_high_freq_ratio_mean ?? "--"}</strong></div>
+            <div><span>DCT 高频均值</span><strong>{fft.dct_high_freq_ratio_mean ?? "--"}</strong></div>
+            <div>
+              <span>异常帧</span>
+              <strong>
+                {Array.isArray(fft.anomaly_frame_indices)
+                  ? fft.anomaly_frame_indices.join(", ")
+                  : "--"}
+              </strong>
+            </div>
+          </div>
+
+          {spectrumUrl ? (
+            <div style={{ marginTop: "22px" }}>
+              <h3 style={{ marginBottom: "12px" }}>FFT 平均频谱图</h3>
+              <img
+                src={toPublicUrl(spectrumUrl)}
+                alt="FFT spectrum"
+                style={{
+                  width: "100%",
+                  maxHeight: "360px",
+                  objectFit: "contain",
+                  borderRadius: "18px",
+                  border: "1px solid rgba(148, 163, 184, 0.25)",
+                  background: "#020617",
+                  padding: "12px",
+                }}
+              />
+              <p style={{ color: "#94a3b8", marginTop: "8px", wordBreak: "break-all" }}>
+                {toPublicUrl(spectrumUrl)}
+              </p>
+            </div>
+          ) : (
+            <div className="placeholder-box small" style={{ marginTop: "20px" }}>
+              暂无 FFT 频谱图
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <h2>Sync 音视频同步</h2>
+
+          <div className="kv-list">
+            <div><span>可用性</span><strong>{sync.available ? "available" : "unavailable"}</strong></div>
+            <div><span>sync_score</span><strong>{moduleB.sync_score ?? sync.sync_score ?? "--"}</strong></div>
+            <div><span>temporal_correlation</span><strong>{sync.temporal_correlation ?? "--"}</strong></div>
+            <div><span>fps</span><strong>{sync.fps ?? "--"}</strong></div>
+            <div><span>说明</span><strong>{sync.message ?? "--"}</strong></div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <h2>LLM 解释</h2>
+          <p className="llm-text">{llmText}</p>
+        </div>
+      </section>
+    </main>
+  );
+}

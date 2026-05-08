@@ -1,0 +1,132 @@
+﻿import { Link } from "react-router-dom";
+import type { DetectionResult } from "../types";
+
+type Props = {
+  result: DetectionResult | null;
+};
+
+function getSavedResult() {
+  try {
+    const saved = localStorage.getItem("deeplens_result");
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+export default function ResultPage({ result }: Props) {
+  const data: any = result || getSavedResult();
+
+  if (!data) {
+    return (
+      <main className="page">
+        <section className="hero compact">
+          <p className="eyebrow">RESULT</p>
+          <h1>暂无检测结果</h1>
+          <p className="subtitle">请先上传视频完成检测。</p>
+          <Link className="primary-button" to="/upload">去上传视频</Link>
+        </section>
+      </main>
+    );
+  }
+
+  const label = data.label || data.video_label || data.raw_result?.video_label || "unknown";
+  const fakeProbability = Number(
+    data.fake_probability ??
+    data.video_fake_prob ??
+    data.raw_result?.video_fake_prob ??
+    0
+  );
+
+  const riskScore = data.risk_score ?? data.raw_result?.risk_score ?? "--";
+  const severity = data.severity ?? data.raw_result?.severity ?? "--";
+  const framesAnalyzed = data.frames_analyzed ?? data.raw_result?.num_frames ?? "--";
+  const numFaces = data.num_faces ?? data.raw_result?.num_faces ?? "--";
+  const method = data.method ?? data.raw_result?.method ?? "--";
+
+  const llmProvider =
+    data.llm_analysis?.provider ||
+    data.raw_result?.llm_analysis?.provider ||
+    data.model_result?.llm_analysis?.provider ||
+    "local_template";
+
+  const explanation =
+    data.llm_analysis?.text ||
+    data.raw_result?.llm_analysis?.text ||
+    data.model_result?.llm_analysis?.text ||
+    data.explanation?.summary ||
+    "暂无解释摘要。";
+
+  const labelText =
+    label === "fake"
+      ? "疑似 Deepfake"
+      : label === "real"
+      ? "疑似真实"
+      : "未知";
+
+  const labelClass = label === "fake" ? "danger-text" : "safe-text";
+
+  return (
+    <main className="page">
+      <section className="hero compact">
+        <p className="eyebrow">RESULT</p>
+        <h1>检测结果</h1>
+        <p className="subtitle">文件：{data.filename || "--"}</p>
+      </section>
+
+      <section className="result-card">
+        <div className="metrics-grid">
+          <div className="metric-box">
+            <span>判断结果</span>
+            <strong className={labelClass}>{labelText}</strong>
+          </div>
+
+          <div className="metric-box">
+            <span>伪造概率</span>
+            <strong>{(fakeProbability * 100).toFixed(2)}%</strong>
+          </div>
+
+          <div className="metric-box">
+            <span>风险分数</span>
+            <strong>{typeof riskScore === "number" ? riskScore.toFixed(2) : riskScore}</strong>
+          </div>
+
+          <div className="metric-box">
+            <span>风险等级</span>
+            <strong>{severity}</strong>
+          </div>
+
+          <div className="metric-box">
+            <span>检测人脸数</span>
+            <strong>{numFaces}</strong>
+          </div>
+
+          <div className="metric-box">
+            <span>分析帧数</span>
+            <strong>{framesAnalyzed}</strong>
+          </div>
+
+          <div className="metric-box">
+            <span>融合方法</span>
+            <strong>{method}</strong>
+          </div>
+
+          <div className="metric-box">
+            <span>LLM 来源</span>
+            <strong>{llmProvider}</strong>
+          </div>
+        </div>
+
+        <div className="summary-box">
+          <h2>解释摘要</h2>
+          <p>{explanation}</p>
+        </div>
+
+        <div className="action-row">
+          <Link className="secondary-button" to="/explain">查看 Grad-CAM / FFT / Sync</Link>
+          <Link className="primary-button" to="/upload">继续检测</Link>
+        </div>
+      </section>
+    </main>
+  );
+}

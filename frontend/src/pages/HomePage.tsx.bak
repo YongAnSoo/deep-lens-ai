@@ -1,0 +1,40 @@
+import { Link } from "react-router-dom";
+
+function HomePage() {
+  return (
+    <section className="hero-grid">
+      <div className="hero-copy">
+        <p className="eyebrow">Explainable Deepfake Detection Platform</p>
+        <h1>DeepLens AI</h1>
+        <p className="subtitle">
+          上传视频后，系统会调用 EfficientNet 视觉模型、FFT 频域分析、音视频同步检测和 LLM 解释层，输出真假判断、风险分数、可疑帧和可解释化说明。
+        </p>
+        <div className="button-row">
+          <Link className="primary-button" to="/upload">开始检测</Link>
+          <Link className="secondary-button" to="/explain">查看可解释化</Link>
+        </div>
+      </div>
+
+      <div className="feature-grid">
+        <article className="card feature-card">
+          <h3>视频上传</h3>
+          <p>支持 mp4、mov、avi、mkv，后端自动保存并调用模型。</p>
+        </article>
+        <article className="card feature-card">
+          <h3>深度伪造检测</h3>
+          <p>使用训练好的 EfficientNet 模型对人脸帧进行真假分类。</p>
+        </article>
+        <article className="card feature-card">
+          <h3>多证据融合</h3>
+          <p>结合视觉概率、频域异常和音视频同步风险进行融合。</p>
+        </article>
+        <article className="card feature-card">
+          <h3>LLM 解释</h3>
+          <p>将模型输出、FFT、Sync、Grad-CAM 证据转化为自然语言分析。</p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+export default HomePage;
